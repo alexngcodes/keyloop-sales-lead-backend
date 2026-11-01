@@ -109,4 +109,54 @@ describe("API", () => {
       error: { code: "INVALID_LEAD_ID", message: "Lead id must be a positive integer" },
     });
   });
+
+  const countActivities = () =>
+    (db.prepare("SELECT COUNT(*) AS count FROM activities").get() as { count: number }).count;
+
+  it("POST /leads/:id/activities creates a trimmed activity that persists in chronological order", async () => {
+    const app = createApp(db);
+
+    const created = await request(app)
+      .post("/leads/1/activities")
+      .send({ type: "call", note: "  Sarah confirmed her appointment.  " });
+
+    expect(created.status).toBe(201);
+    expect(created.body).toEqual({
+      id: 4,
+      type: "call",
+      note: "Sarah confirmed her appointment.",
+      createdAt: expect.any(String),
+    });
+    expect(new Date(created.body.createdAt).toISOString()).toBe(created.body.createdAt);
+
+    // The fixtures are all dated 2025, so a new activity timestamped "now" sorts last.
+    const detail = await request(app).get("/leads/1");
+    expect(detail.body.activities.map((a: { id: number }) => a.id)).toEqual([2, 1, 3, 4]);
+    expect(detail.body.activities[3]).toEqual(created.body);
+  });
+
+  it.each([
+    ["an unsupported type", { type: "phone", note: "Called." }],
+    ["a whitespace-only note", { type: "call", note: "   " }],
+    ["malformed JSON", '{"type": "call", "note": '],
+  ])("POST /leads/:id/activities returns 400 for %s", async (_name, body) => {
+    const res = await request(createApp(db))
+      .post("/leads/1/activities")
+      .set("Content-Type", "application/json")
+      .send(typeof body === "string" ? body : JSON.stringify(body));
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: { code: "INVALID_ACTIVITY", message: "Invalid activity data" } });
+    expect(countActivities()).toBe(3);
+  });
+
+  it("POST /leads/:id/activities returns 404 for an unknown lead and inserts nothing", async () => {
+    const res = await request(createApp(db))
+      .post("/leads/999/activities")
+      .send({ type: "note", note: "Nobody to attach this to." });
+
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: { code: "LEAD_NOT_FOUND", message: "Lead not found" } });
+    expect(countActivities()).toBe(3);
+  });
 });

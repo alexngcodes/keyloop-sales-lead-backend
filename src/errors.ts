@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
+import { ZodError } from "zod";
 
 export class AppError extends Error {
   constructor(
@@ -20,6 +21,13 @@ export class NotFoundError extends AppError {
 export function errorHandler(err: unknown, req: Request, res: Response, _next: NextFunction) {
   if (err instanceof AppError) {
     res.status(err.status).json({ error: { code: err.code, message: err.message } });
+    return;
+  }
+
+  // A failed Zod check, or a body that is not valid JSON, means the activity data is invalid.
+  const isUnparsableJson = (err as { type?: string } | null)?.type === "entity.parse.failed";
+  if (err instanceof ZodError || isUnparsableJson) {
+    res.status(400).json({ error: { code: "INVALID_ACTIVITY", message: "Invalid activity data" } });
     return;
   }
 

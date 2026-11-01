@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { AppError } from "../errors.js";
+import { createActivitySchema } from "./schemas.js";
 import type { LeadService } from "./service.js";
 
 function parseLeadId(raw: string): number {
@@ -20,6 +21,12 @@ export function createLeadRouter(service: LeadService) {
   router.get("/:id", (req, res) => {
     const id = parseLeadId(req.params.id);
     res.json(service.getLeadWithActivities(id));
+  });
+
+  router.post("/:id/activities", (req, res) => {
+    const id = parseLeadId(req.params.id);
+    const input = createActivitySchema.parse(req.body);
+    res.status(201).json(service.createActivity(id, input));
   });
 
   return router;

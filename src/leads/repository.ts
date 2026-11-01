@@ -36,10 +36,18 @@ export function createLeadRepository(db: Db) {
      ORDER BY created_at ASC, id ASC`,
   );
 
+  const insertActivity = db.prepare(
+    "INSERT INTO activities (lead_id, type, note, created_at) VALUES (?, ?, ?, ?)",
+  );
+
   return {
     listLeads: () => listLeads.all() as Lead[],
     findLeadById: (id: number) => findLead.get(id) as Lead | undefined,
     listActivitiesForLead: (leadId: number) => listActivities.all(leadId) as Activity[],
+    createActivity(leadId: number, { type, note, createdAt }: Omit<Activity, "id">): Activity {
+      const { lastInsertRowid } = insertActivity.run(leadId, type, note, createdAt);
+      return { id: Number(lastInsertRowid), type, note, createdAt };
+    },
   };
 }
 

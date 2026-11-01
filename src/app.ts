@@ -11,7 +11,9 @@ export function createApp(db: Db) {
   const logger = pino({ level: process.env.LOG_LEVEL ?? "info" });
   const app = express();
 
+  // Logging comes first so requests with unreadable bodies are still logged.
   app.use(pinoHttp({ logger }));
+  app.use(express.json());
 
   app.get("/health", (_req, res) => {
     res.json({ status: "ok" });
