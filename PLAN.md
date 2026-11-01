@@ -59,14 +59,20 @@ keyloop/
 └── package.json, tsconfig.json, .gitignore
 ```
 
-## Tests (tests/api.test.ts, Supertest + in-memory DB, 7 tests)
-1. `GET /health` → 200.
-2. `GET /leads` → seeded leads, newest first. (R1)
-3. `GET /leads/:id` → lead with activities in chronological order. (R2)
-4. `GET /leads/:id` unknown id → 404. (R2)
-5. `POST /leads/:id/activities` valid → 201, and activity appears in subsequent GET detail, last in order. (R3)
-6. `POST` invalid body (bad type / empty note) → 400. (R3)
-7. `POST` to unknown lead → 404. (R3)
+## Tests (tests/api.test.ts, Supertest + in-memory DB, 11 executed test cases)
+1. Health endpoint: `GET /health` → 200 `{status:"ok"}`.
+2. Lead list ordering: `GET /leads` → fixture leads, newest first, no activities. (R1)
+3. Lead detail with chronological activities: `GET /leads/:id` → activities ordered by time even when ids are not. (R2)
+4. Lead with empty activities: `GET /leads/:id` → `activities: []`. (R2)
+5. Unknown lead GET: `GET /leads/:id` for an unknown id → 404. (R2)
+6. Invalid lead id: `GET /leads/not-a-number` → 400. (R2)
+7. Valid activity creation and persistence: `POST /leads/:id/activities` → 201, and the activity appears last in a subsequent GET detail. (R3)
+8. Invalid activity type → 400. (R3)
+9. Whitespace-only activity note → 400. (R3)
+10. Malformed JSON activity body → 400. (R3)
+11. Unknown lead POST → 404, nothing inserted. (R3)
+
+The product scope did not expand. The original seven-test outline became 11 executed cases because some approved behaviours became separate parameterized test cases (cases 8–10 are one `it.each`), and the already-approved 400 for an invalid lead id (case 6) is now tested.
 
 File-backed persistence (R4) is verified manually in checkpoint 5: create activity, restart server, GET again.
 
